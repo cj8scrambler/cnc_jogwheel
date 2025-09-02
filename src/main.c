@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/gpio.h"
+#include "hardware/adc.h"
+#include "hardware/irq.h"
+
+#include "io.h"
+
+extern volatile uint8_t joy_poll;  // from io.cpp
+
+int main() {
+  stdio_init_all();
+
+printf("Begin\n");
+
+  jogwheel_io_init();
+
+  // Keep I/O on core0 and GRBL work on core1
+  //multicore_launch_core1(grbl_handler);
+
+  while (true) {
+    if (check_ain(AIN_XY_SPEED_CHAN) || check_ain(AIN_XY_SPEED_CHAN))
+      handle_ain();
+
+    handle_rotary();
+    handle_joy();
+    handle_button();
+
+    if (joy_poll)
+      poll_joystick();
+
+  }
+
+  return 0;
+}
