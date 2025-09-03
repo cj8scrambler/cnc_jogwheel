@@ -21,10 +21,6 @@ int i=0;
   //multicore_launch_core1(grbl_handler);
 
   while (true) {
-    // TODO: Move these to a timer
-    check_ain(AIN_XY_SPEED_CHAN);
-    check_ain(AIN_Z_SPEED_CHAN);
-
     handle_inputs();
 
     set_led(i++%2);
