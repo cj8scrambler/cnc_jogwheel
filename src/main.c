@@ -4,16 +4,27 @@
 #include "hardware/adc.h"
 #include "hardware/irq.h"
 
+#include "tusb.h"
+
 #include "io.h"
 
 extern volatile uint8_t joy_poll;  // from io.cpp
 
 int main() {
+int i=0;
   stdio_init_all();
 
-printf("Begin\n");
+#if 0
+  while (!tud_cdc_connected()) {
+    sleep_ms(100);
+  }
+
+  printf("USB CDC is connected!\n");
+  sleep_ms(500);
+#endif
 
   jogwheel_io_init();
+  set_led(1);
 
   // Keep I/O on core0 and GRBL work on core1
   //multicore_launch_core1(grbl_handler);
@@ -28,6 +39,9 @@ printf("Begin\n");
 
     if (joy_poll)
       poll_joystick();
+
+    set_led(i++%2);
+    sleep_ms(500);
 
   }
 

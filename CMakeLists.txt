@@ -13,3 +13,15 @@ add_executable(${PROJECT_NAME}
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc) 
 
 target_link_libraries(${PROJECT_NAME} pico_stdlib hardware_adc)
+
+if (PICO_CYW43_SUPPORTED)
+    target_link_libraries(${PROJECT_NAME} pico_cyw43_arch_none)
+endif()
+
+# enable usb output, disable uart output
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY COMPILE_WARNING_AS_ERROR ON)
+
+pico_add_extra_outputs(${PROJECT_NAME})

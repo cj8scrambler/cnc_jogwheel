@@ -11,3 +11,5 @@ void handle_rotary(void);
 void handle_joy(void);
 void handle_button(void);
 void handle_ain(void);
+
+void set_led(bool enable);

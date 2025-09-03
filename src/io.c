@@ -4,6 +4,10 @@
 #include "hardware/adc.h"
 #include "hardware/irq.h"
 
+#ifdef CYW43_WL_GPIO_LED_PIN
+#include "pico/cyw43_arch.h"
+#endif
+
 #include "io.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -23,9 +27,9 @@
 #define ROT_A_GPIO         10
 #define ROT_B_GPIO         11
 
-#define AIN_XY_SPEED_PIN   31
+#define AIN_XY_SPEED_PIN   26
 //#define AIN_XY_SPEED_CHAN   0
-#define AIN_Z_SPEED_PIN    32
+#define AIN_Z_SPEED_PIN    27
 //#define AIN_Z_SPEED_CHAN    1
 
 #define MAX_BTN_NAME_LEN   16
@@ -148,7 +152,7 @@ void gpio_isr(uint gpio, uint32_t events)
       button_info[button].state = DEBOUNCING;
       alarm_id_t id = add_alarm_at(
                         delayed_by_ms(get_absolute_time(), BTN_DEBOUNCE_MS),
-                        debounce_handler, (void *)&button_info[button], true);           
+                        debounce_handler, (void *)&button_info[button], true);
     }
     break;
 
@@ -159,8 +163,26 @@ void gpio_isr(uint gpio, uint32_t events)
   }
 }
 
+void set_led(bool enable)
+{
+#if defined(PICO_DEFAULT_LED_PIN)
+  gpio_put(PICO_DEFAULT_LED_PIN, enable);
+#elif defined(CYW43_WL_GPIO_LED_PIN)
+  cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, enable);
+#else
+  #error Unkown LED configuration
+#endif
+}
+
 void jogwheel_io_init(void)
 {
+#if defined(PICO_DEFAULT_LED_PIN)
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+#elif defined(CYW43_WL_GPIO_LED_PIN)
+    cyw43_arch_init();
+#endif
+
   for(int i = 0; i < ARRAY_SIZE(button_info); i++) {
     gpio_init(button_info[i].gpio);
     gpio_set_dir(button_info[i].gpio, GPIO_IN);
@@ -180,14 +202,14 @@ void jogwheel_io_init(void)
   gpio_set_irq_callback(&gpio_isr);
 
   adc_init();
-  adc_gpio_init(AIN_XY_SPEED_PIN); 
-  adc_gpio_init(AIN_Z_SPEED_PIN); 
+  adc_gpio_init(AIN_XY_SPEED_PIN);
+  adc_gpio_init(AIN_Z_SPEED_PIN);
 }
 
 void poll_joystick(void)
 {
   bool any_active = false;
- 
+
   for (btn_t button = JOY_LEFT; button <= JOY_DOWN; button++ ) {
     if (!gpio_get(button_info[button].gpio)) {
       button_info[button].state = ACTIVE;
