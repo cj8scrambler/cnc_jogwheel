@@ -8,20 +8,11 @@
 
 #include "io.h"
 
-extern volatile uint8_t joy_poll;  // from io.cpp
+//extern volatile uint8_t joy_poll;  // from io.cpp
 
 int main() {
 int i=0;
   stdio_init_all();
-
-#if 0
-  while (!tud_cdc_connected()) {
-    sleep_ms(100);
-  }
-
-  printf("USB CDC is connected!\n");
-  sleep_ms(500);
-#endif
 
   jogwheel_io_init();
   set_led(1);
@@ -30,19 +21,14 @@ int i=0;
   //multicore_launch_core1(grbl_handler);
 
   while (true) {
-    if (check_ain(AIN_XY_SPEED_CHAN) || check_ain(AIN_XY_SPEED_CHAN))
-      handle_ain();
+    // TODO: Move these to a timer
+    check_ain(AIN_XY_SPEED_CHAN);
+    check_ain(AIN_Z_SPEED_CHAN);
 
-    handle_rotary();
-    handle_joy();
-    handle_button();
-
-    if (joy_poll)
-      poll_joystick();
+    handle_inputs();
 
     set_led(i++%2);
     sleep_ms(500);
-
   }
 
   return 0;

@@ -48,38 +48,32 @@ typedef enum btn {
   NUM_BTNS, /* leave last */
 } btn_t;
 
-typedef enum btn_state {
-  IDLE = 0x0,
-  ACTIVE,
-  DEBOUNCING,
-} btn_state_t;
-
 typedef struct btn_info {
-  btn_state_t state;
   int gpio;
+  bool debouncing;
+  bool poll;
+  uint16_t count;
   const char name[MAX_BTN_NAME_LEN];
 } btn_info_t;
 
 /* Button info table; also need to add to gpio_to_button() */
 volatile btn_info_t button_info[] = {
-  [JOY_LEFT] = {IDLE, JOY_LEFT_GPIO, "Joy-Left"},
-  [JOY_UP] = {IDLE, JOY_UP_GPIO, "Joy-Up"},
-  [JOY_RIGHT] = {IDLE, JOY_RIGHT_GPIO, "Joy-Right"},
-  [JOY_DOWN] = {IDLE, JOY_DOWN_GPIO, "Joy-Down"},
-  [BTN_XY_ZERO] = {IDLE, BTN_XY_ZERO_GPIO, "Button-XY-Zero"},
-  [BTN_Z_ZERO] = {IDLE, BTN_Z_ZERO_GPIO, "Button-Z-Zero"},
-  [BTN_HOME] = {IDLE, BTN_HOME_GPIO, "Button-Home"},
-  [BTN_EXTRA] = {IDLE, BTN_EXTRA_GPIO, "Button-Extra"},
+  [JOY_LEFT] =    {JOY_LEFT_GPIO,    false, false, 0, "Joy-Left"},
+  [JOY_UP] =      {JOY_UP_GPIO,      false, false, 0, "Joy-Up"},
+  [JOY_RIGHT] =   {JOY_RIGHT_GPIO,   false, false, 0, "Joy-Right"},
+  [JOY_DOWN] =    {JOY_DOWN_GPIO,    false, false, 0, "Joy-Down"},
+  [BTN_XY_ZERO] = {BTN_XY_ZERO_GPIO, false, false, 0, "Button-XY-Zero"},
+  [BTN_Z_ZERO] =  {BTN_Z_ZERO_GPIO,  false, false, 0, "Button-Z-Zero"},
+  [BTN_HOME] =    {BTN_HOME_GPIO,    false, false, 0, "Button-Home"},
+  [BTN_EXTRA] =   {BTN_EXTRA_GPIO,   false, false, 0, "Button-Extra"},
 };
-
-volatile bool joy_poll = false;
 
 volatile uint8_t xy_speed = 0;
 volatile bool event_xy_speed = 0;
 volatile uint8_t z_speed = 0;
 volatile bool event_z_speed = 0;
 
-volatile uint16_t encoder_position = 0;
+volatile int32_t encoder_position = 0;
 uint8_t last_encoder_state = 0;
 volatile bool event_encoder = false;
 
@@ -96,48 +90,51 @@ void handle_encoder(void)
   event_encoder = true;
 }
 
-btn_t gpio_to_button(uint gpio)
+volatile btn_info_t *gpio_to_button_info(uint gpio)
 {
+  btn_t btn = NUM_BTNS;
   switch(gpio) {
   case JOY_LEFT_GPIO:
-    return JOY_LEFT;
+    btn = JOY_LEFT;
   case JOY_DOWN_GPIO:
-    return JOY_DOWN;
+    btn = JOY_DOWN;
   case JOY_RIGHT_GPIO:
-    return JOY_RIGHT;
+    btn = JOY_RIGHT;
   case JOY_UP_GPIO:
-    return JOY_UP;
+    btn = JOY_UP;
   case BTN_XY_ZERO_GPIO:
-    return BTN_XY_ZERO;
+    btn = BTN_XY_ZERO;
   case BTN_Z_ZERO_GPIO:
-    return BTN_Z_ZERO;
+    btn = BTN_Z_ZERO;
   case BTN_HOME_GPIO:
-    return BTN_HOME;
+    btn = BTN_HOME;
   case BTN_EXTRA_GPIO:
-    return BTN_EXTRA;
+    btn = BTN_EXTRA;
   }
 
-  printf("Error: Unhandled GPIO: %d\n", gpio);
-  return NUM_BTNS;
+  if (btn < ARRAY_SIZE(button_info))
+    return &button_info[btn];
+
+  printf("Error: Unhandled button for GPIO-%d\n", gpio);
+  return NULL;
 }
 
 int64_t debounce_handler(alarm_id_t id, void *user_data)
 {
   volatile btn_info_t *button = (btn_info_t *)user_data;
 
-  /* If it's still low, then it's good; otherwise back to idle */
-  if (gpio_get(button->gpio)) {
-      button->state = IDLE;
-  } else {
-      button->state = ACTIVE;
-printf("DZ: debounced button: %s\n", button->name);
+  button->debouncing = false;
+  /* If it's still low, then increment active count and start polling */
+  if (!gpio_get(button->gpio)) {
+    button->count++;
+    button->poll = true;
   }
   return 0;
 }
 
 void gpio_isr(uint gpio, uint32_t events)
 {
-  btn_t button = gpio_to_button(gpio);
+  volatile btn_info_t *button = NULL;
 
   switch (gpio) {
   case JOY_LEFT_GPIO:
@@ -148,11 +145,12 @@ void gpio_isr(uint gpio, uint32_t events)
   case BTN_Z_ZERO_GPIO:
   case BTN_HOME_GPIO:
   case BTN_EXTRA_GPIO:
-    if ((events & GPIO_IRQ_EDGE_FALL) && (button_info[button].state = IDLE)) {
-      button_info[button].state = DEBOUNCING;
+    button = gpio_to_button_info(gpio);
+    if ((events & GPIO_IRQ_EDGE_FALL) && (!button->debouncing)) {
+      button->debouncing = true;
       alarm_id_t id = add_alarm_at(
                         delayed_by_ms(get_absolute_time(), BTN_DEBOUNCE_MS),
-                        debounce_handler, (void *)&button_info[button], true);
+                        debounce_handler, (void *)button, true);
     }
     break;
 
@@ -200,28 +198,13 @@ void jogwheel_io_init(void)
 
   /* One ISR for all GPIOs */
   gpio_set_irq_callback(&gpio_isr);
+  irq_set_enabled(IO_IRQ_BANK0, true);
 
   adc_init();
   adc_gpio_init(AIN_XY_SPEED_PIN);
   adc_gpio_init(AIN_Z_SPEED_PIN);
 }
 
-void poll_joystick(void)
-{
-  bool any_active = false;
-
-  for (btn_t button = JOY_LEFT; button <= JOY_DOWN; button++ ) {
-    if (!gpio_get(button_info[button].gpio)) {
-      button_info[button].state = ACTIVE;
-      any_active = true;
-    }
-  }
-
-  /* Stop polling none are active */
-  if (!any_active) {
-    joy_poll = false;
-  }
-}
 
 bool check_ain(int chan)
 {
@@ -253,63 +236,13 @@ bool check_ain(int chan)
   return false;
 }
 
-void handle_rotary(void)
+void handle_inputs(void)
 {
   if (event_encoder) {
     printf("  Rotary: %d\n", encoder_position);
     event_encoder = false;
   }
-}
 
-void handle_joy(void)
-{
-  if ((button_info[JOY_LEFT].state == ACTIVE) ||
-      (button_info[JOY_UP].state == ACTIVE) ||
-      (button_info[JOY_RIGHT].state == ACTIVE) ||
-      (button_info[JOY_DOWN].state == ACTIVE)) {
-    printf("Joystick:");
-    if (button_info[JOY_LEFT].state == ACTIVE) {
-      printf(" LEFT ");
-      button_info[JOY_LEFT].state == IDLE;
-    }
-    if (button_info[JOY_UP].state == ACTIVE) {
-      printf("  UP  ");
-      button_info[JOY_UP].state == IDLE;
-    }
-    if (button_info[JOY_RIGHT].state == ACTIVE) {
-      printf(" RIGHT");
-      button_info[JOY_RIGHT].state == IDLE;
-    }
-    if (button_info[JOY_DOWN].state == ACTIVE) {
-      printf(" DOWN ");
-      button_info[JOY_DOWN].state == IDLE;
-    }
-    printf("\n");
-  }
-}
-
-void handle_button(void)
-{
-  if (button_info[BTN_XY_ZERO].state == ACTIVE) {
-    printf(" Button: XY-Zero\n");
-    button_info[BTN_XY_ZERO].state == IDLE;
-  }
-  if (button_info[BTN_Z_ZERO].state == ACTIVE) {
-    printf(" Button: Z-Zero\n");
-    button_info[BTN_Z_ZERO].state == IDLE;
-  }
-  if (button_info[BTN_HOME].state == ACTIVE) {
-    printf(" Button: Home\n");
-    button_info[BTN_HOME].state == IDLE;
-  }
-  if (button_info[BTN_EXTRA].state == ACTIVE) {
-    printf(" Button: Extra\n");
-    button_info[BTN_EXTRA].state == IDLE;
-  }
-}
-
-void handle_ain(void)
-{
   if (event_xy_speed) {
     printf(" Switch: XY-Speed = %d\n", xy_speed);
     event_xy_speed = false;
@@ -317,5 +250,30 @@ void handle_ain(void)
   if (event_z_speed) {
     printf(" Switch: Z-Speed = %d\n", z_speed);
     event_z_speed = false;
+  }
+
+  for (int i = 0; i < NUM_BTNS; i++) {
+    volatile btn_info_t *button = &button_info[i];
+    if (button->count) {
+      printf(" Button: %s (count=%d)\n", button->name, button->count);
+      button->count--;
+    }
+  }
+
+  /* poll buttons that are being held active */
+  for (int i = 0; i < NUM_BTNS; i++) {
+    volatile btn_info_t *button = &button_info[i];
+
+    if (button->poll) {
+      if (!gpio_get(button->gpio)) {
+        // TODO: check auto-repeat timer instead of relying on debouncing state
+        if (!button->debouncing) {
+          button->count++;
+        }
+      } else {
+        /* Stop polling once it goes inactive */
+        button->poll = false;
+      }
+    }
   }
 }
