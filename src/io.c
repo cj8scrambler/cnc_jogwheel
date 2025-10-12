@@ -15,23 +15,25 @@
 
 #define ADC_MAX          (1 << 12)
 
-#define JOY_LEFT_GPIO           6
-#define JOY_DOWN_GPIO           7
-#define JOY_RIGHT_GPIO          8
-#define JOY_UP_GPIO             9
+/*      NAME                  GPIO      PIN  */
+#define JOY_LEFT_GPIO           6    // 9
+#define JOY_DOWN_GPIO           7    // 10
+#define JOY_RIGHT_GPIO          8    // 11
+#define JOY_UP_GPIO             9    // 12
 
-#define BTN_XY_ZERO_GPIO       12
-#define BTN_Z_ZERO_GPIO        13
-#define BTN_HOME_GPIO          14
-#define BTN_EXTRA_GPIO         15
+#define BTN_XY_ZERO_GPIO       12    // 16
+#define BTN_Z_ZERO_GPIO        13    // 17
+#define BTN_HOME_GPIO          14    // 18
+#define BTN_PROBE_Z_GPIO       15    // 19
+#define BTN_PROBE_XYZ_GPIO     16    // 21
 
-#define ROT_A_GPIO             10
-#define ROT_B_GPIO             11
+#define ROT_A_GPIO             10    // 14
+#define ROT_B_GPIO             11    // 15
 
-#define AIN_XY_SPEED_PIN       26
-#define AIN_XY_SPEED_CHAN       0
-#define AIN_Z_SPEED_PIN        27
-#define AIN_Z_SPEED_CHAN        1
+#define AIN_XY_SPEED_PIN       26    // 31
+#define AIN_XY_SPEED_CHAN       0    // ADC0
+#define AIN_Z_SPEED_PIN        27    // 32
+#define AIN_Z_SPEED_CHAN        1    // ADC1
 
 #define MAX_BTN_NAME_LEN       16
 #define BTN_DEBOUNCE_MS        25 /* button debounce time */
@@ -46,7 +48,8 @@ typedef enum btn {
   BTN_XY_ZERO,
   BTN_Z_ZERO,
   BTN_HOME,
-  BTN_EXTRA,
+  BTN_PROBE_Z,
+  BTN_PROBE_XYZ,
 
   NUM_BTNS, /* leave last */
 } btn_t;
@@ -80,7 +83,8 @@ volatile btn_info_t button_info[] = {
   [BTN_XY_ZERO] = BUTTON_INFO(BTN_XY_ZERO_GPIO, "Button-XY-Zero"),
   [BTN_Z_ZERO] =  BUTTON_INFO(BTN_Z_ZERO_GPIO, "Button-Z-Zero"),
   [BTN_HOME] =    BUTTON_INFO(BTN_HOME_GPIO, "Button-Home"),
-  [BTN_EXTRA] =   BUTTON_INFO(BTN_EXTRA_GPIO, "Button-Extra"),
+  [BTN_PROBE_Z] = BUTTON_INFO(BTN_PROBE_Z_GPIO, "Button-Probe-Z"),
+  [BTN_PROBE_XYZ] = BUTTON_INFO(BTN_PROBE_XYZ_GPIO, "Button-Probe-XYZ"),
 };
 
 volatile uint8_t xy_speed = 0;
@@ -131,8 +135,11 @@ static volatile btn_info_t *gpio_to_button_info(uint gpio)
   case BTN_HOME_GPIO:
     btn = BTN_HOME;
     break;
-  case BTN_EXTRA_GPIO:
-    btn = BTN_EXTRA;
+  case BTN_PROBE_Z_GPIO:
+    btn = BTN_PROBE_Z;
+    break;
+  case BTN_PROBE_XYZ_GPIO:
+    btn = BTN_PROBE_XYZ;
     break;
   }
 
@@ -169,7 +176,8 @@ static void gpio_isr(uint gpio, uint32_t events)
   case BTN_XY_ZERO_GPIO:
   case BTN_Z_ZERO_GPIO:
   case BTN_HOME_GPIO:
-  case BTN_EXTRA_GPIO:
+  case BTN_PROBE_Z_GPIO:
+  case BTN_PROBE_XYZ_GPIO:
     button = gpio_to_button_info(gpio);
     if ((events & GPIO_IRQ_EDGE_FALL) && (!button->debouncing)) {
       button->debouncing = true;
@@ -271,7 +279,6 @@ void jogwheel_io_init(void)
  
   add_repeating_timer_ms(AIN_POLL_PERIOD_MS, periodic_poll_ain, NULL, &poll_ain_timer);
 }
-
 
 void handle_inputs(void)
 {

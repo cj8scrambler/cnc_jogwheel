@@ -8,8 +8,6 @@
 
 #include "io.h"
 
-//extern volatile uint8_t joy_poll;  // from io.cpp
-
 int main() {
 int i=0;
   stdio_init_all();
