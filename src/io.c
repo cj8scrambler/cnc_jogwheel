@@ -9,6 +9,7 @@
 #include "pico/cyw43_arch.h"
 #endif
 
+#include "grbl.h"
 #include "io.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -16,10 +17,17 @@
 #define ADC_MAX          (1 << 12)
 
 /*      NAME                  GPIO      PIN  */
+#if 0
 #define JOY_LEFT_GPIO           6    // 9
 #define JOY_DOWN_GPIO           7    // 10
 #define JOY_RIGHT_GPIO          8    // 11
 #define JOY_UP_GPIO             9    // 12
+#else
+#define JOY_LEFT_GPIO           8
+#define JOY_DOWN_GPIO           7
+#define JOY_RIGHT_GPIO          9
+#define JOY_UP_GPIO             6
+#endif
 
 #define BTN_XY_ZERO_GPIO       12    // 16
 #define BTN_Z_ZERO_GPIO        13    // 17
@@ -36,7 +44,7 @@
 #define AIN_Z_SPEED_CHAN        1    // ADC1
 
 #define MAX_BTN_NAME_LEN       16
-#define BTN_DEBOUNCE_MS        25 /* button debounce time */
+#define BTN_DEBOUNCE_MS        50 /* button debounce time */
 #define AIN_POLL_PERIOD_MS    100 /* how often to poll analog input switches */
 #define BTN_AUTOREPEAT_MS     150 /* button press auto-repeat delay */
 
@@ -87,15 +95,15 @@ volatile btn_info_t button_info[] = {
   [BTN_PROBE_XYZ] = BUTTON_INFO(BTN_PROBE_XYZ_GPIO, "Button-Probe-XYZ"),
 };
 
+/* Multipliers for slow, medium fast speed selectors */
+const int speed_multiplier[] = {1, 10, 25};
+
 volatile uint8_t xy_speed = 0;
-volatile bool event_xy_speed = 0;
 volatile uint8_t z_speed = 0;
-volatile bool event_z_speed = 0;
 repeating_timer_t poll_ain_timer;
 
 volatile int32_t encoder_position = 0;
 uint8_t last_encoder_state = 0;
-volatile bool event_encoder = false;
 
 static void handle_encoder(void)
 {
@@ -107,7 +115,6 @@ static void handle_encoder(void)
   uint8_t current_encoder_state = (gpio_get(ROT_A_GPIO) << 1) | gpio_get(ROT_B_GPIO);
   encoder_position += rotary_lookup[last_encoder_state][current_encoder_state];
   last_encoder_state = current_encoder_state;
-  event_encoder = true;
 }
 
 static volatile btn_info_t *gpio_to_button_info(uint gpio)
@@ -211,13 +218,13 @@ static bool check_ain(int chan)
 
   if ((chan == AIN_XY_SPEED_CHAN) && (scaled != xy_speed)) {
     xy_speed = scaled;
-    event_xy_speed = 1;
+    printf("XY Speed updated to %d (multiply %d)\n", xy_speed, speed_multiplier[xy_speed]);
     return true;
   }
 
   if ((chan == AIN_Z_SPEED_CHAN) && (scaled != z_speed)) {
     z_speed = scaled;
-    event_z_speed = 1;
+    printf("Z Speed updated to %d (multiply %d)\n", z_speed, speed_multiplier[z_speed]);
     return true;
   }
 
@@ -282,25 +289,60 @@ void jogwheel_io_init(void)
 
 void handle_inputs(void)
 {
-  if (event_encoder) {
-    printf("  Rotary: %d\n", encoder_position);
-    event_encoder = false;
-  }
+  static int32_t last_encoder_position = 0;
+  int16_t delta;
 
-  if (event_xy_speed) {
-    printf(" Switch: XY-Speed = %d\n", xy_speed);
-    event_xy_speed = false;
-  }
-  if (event_z_speed) {
-    printf(" Switch: Z-Speed = %d\n", z_speed);
-    event_z_speed = false;
+  if (encoder_position != last_encoder_position) {
+    delta = encoder_position - last_encoder_position;
+    last_encoder_position = encoder_position;
+    // 1 click is 4 encoder positions so divide by 4
+    grbl_quick_command(MOVE_Z, (delta * speed_multiplier[z_speed]) / 4 );
   }
 
   for (int i = 0; i < NUM_BTNS; i++) {
     volatile btn_info_t *button = &button_info[i];
     if (button->count) {
-      printf(" Button: %s (count=%d)\n", button->name, button->count);
-      button->count--;
+      delta = button->count;
+      printf(" Button: %s (count=%d)\n", button->name, delta);
+      grbl_cmd cmd = {INVALID, 0};
+      switch(i) {
+      case JOY_LEFT:
+        grbl_quick_command(MOVE_X, delta * -speed_multiplier[xy_speed]);
+        button->count -= delta;
+        break;
+      case JOY_UP:
+        grbl_quick_command(MOVE_Y, delta * speed_multiplier[xy_speed]);
+        button->count -= delta;
+        break;
+      case JOY_RIGHT:
+        grbl_quick_command(MOVE_X, delta * speed_multiplier[xy_speed]);
+        button->count -= delta;
+        break;
+      case JOY_DOWN:
+        grbl_quick_command(MOVE_Y, delta * -speed_multiplier[xy_speed]);
+        button->count -= delta;
+        break;
+      case BTN_XY_ZERO_GPIO:
+        grbl_quick_command(ZERO_XY, 0);
+        button->count = 0;
+        break;
+      case BTN_Z_ZERO_GPIO:
+        grbl_quick_command(ZERO_Z, 0);
+        button->count = 0;
+        break;
+      case BTN_HOME_GPIO:
+        grbl_quick_command(HOME, 0);
+        button->count = 0;
+        break;
+      case BTN_PROBE_Z_GPIO:
+        grbl_quick_command(PROBE_Z, 0);
+        button->count = 0;
+        break;
+      case BTN_PROBE_XYZ_GPIO:
+        grbl_quick_command(PROBE_XY, 0);
+        button->count = 0;
+        break;
+      }
     }
   }
 

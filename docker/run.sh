@@ -35,9 +35,17 @@ GROUP_ID=$(id -g)
 
 if [ "$#" -eq 0 ]
 then
-    docker run --rm -it -v "$(pwd)":$(pwd) -w"$(pwd)"\
-    --user "$USER_ID:$GROUP_ID" $IMAGE_NAME bash
+    docker run --rm -it \
+        -v "$(pwd)":"$(pwd)" -w"$(pwd)" \
+        -v /dev/bus/usb:/dev/bus/usb    \
+        --privileged                    \
+        --user "$USER_ID:$GROUP_ID"     \
+        $IMAGE_NAME bash
 else
-    docker run --rm -it -v "$(pwd)":$(pwd) -w"$(pwd)"\
-    --user "$USER_ID:$GROUP_ID" $IMAGE_NAME bash -c "$*"
+    docker run --rm -it \
+        -v "$(pwd)":"$(pwd)" -w"$(pwd)" \
+        -v /dev/bus/usb:/dev/bus/usb    \
+        --privileged                    \
+        --user "$USER_ID:$GROUP_ID"     \
+        $IMAGE_NAME bash -c "$*"
 fi

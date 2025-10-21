@@ -5,7 +5,7 @@ RUN apt-get update && \
     apt-get install -y build-essential cmake git \
         python3 \
         gcc-arm-none-eabi libnewlib-arm-none-eabi \
-        libstdc++-arm-none-eabi-newlib && \
+        libstdc++-arm-none-eabi-newlib libusb-1.0-0-dev && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /buildtools
@@ -18,5 +18,4 @@ RUN git clone https://github.com/raspberrypi/picotool.git && \
     cmake --build build --target install && \
     cd - && rm -rf picotool
 
-#WORKDIR /app
 CMD ["/bin/bash"]

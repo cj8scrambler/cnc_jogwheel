@@ -1,12 +1,8 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/gpio.h"
-#include "hardware/adc.h"
-#include "hardware/irq.h"
-
-#include "tusb.h"
 
 #include "io.h"
+#include "grbl.h"
 
 int main() {
 int i=0;
@@ -15,8 +11,7 @@ int i=0;
   jogwheel_io_init();
   set_led(1);
 
-  // Keep I/O on core0 and GRBL work on core1
-  //multicore_launch_core1(grbl_handler);
+  grbl_init();
 
   while (true) {
     handle_inputs();
