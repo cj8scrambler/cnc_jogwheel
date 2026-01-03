@@ -27,6 +27,9 @@ static const char *action_names[] = {
 static void grbl_handler();
 
 int grbl_init() {
+  // Initialize UART for GRBL communication
+  grbl_uart_init();
+  
   // TODO: error checking
   queue_init(&message_queue, sizeof(grbl_cmd), 16);
   multicore_launch_core1(grbl_handler);

@@ -5,6 +5,12 @@
 #include <stdbool.h>
 
 /**
+ * Initialize UART for GRBL communication
+ * Should be called once during system initialization before any grbl_cmd_* functions
+ */
+void grbl_uart_init(void);
+
+/**
  * Move - Jog the head in specified direction(s) by a distance at a given speed.
  * This operation is for moving while the head is not spinning.
  * 
@@ -12,7 +18,7 @@
  * @param y_distance Distance to move in Y direction (mm), use 0 to skip Y movement
  * @param z_distance Distance to move in Z direction (mm), use 0 to skip Z movement
  * @param speed Speed at which to move the head (mm/min)
- * @return 0 on success, negative error code on failure
+ * @return 0 on success, -1 on timeout/buffer overflow, -2 on GRBL error response
  */
 int grbl_cmd_move(float x_distance, float y_distance, float z_distance, uint16_t speed);
 
