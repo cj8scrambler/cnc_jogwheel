@@ -18,7 +18,7 @@ void grbl_uart_init(void);
  * @param y_distance Distance to move in Y direction (mm), use 0 to skip Y movement
  * @param z_distance Distance to move in Z direction (mm), use 0 to skip Z movement
  * @param speed Speed at which to move the head (mm/min)
- * @return 0 on success, negative error code on failure
+ * @return 0 on success, -1 on timeout/buffer overflow, -2 on GRBL error response
  */
 int grbl_cmd_move(float x_distance, float y_distance, float z_distance, uint16_t speed);
 
