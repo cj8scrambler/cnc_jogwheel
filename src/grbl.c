@@ -38,10 +38,10 @@ int grbl_init() {
   // Rx (GPIO-5, pin 7) receives from GRBL controller
   uint actual_baud = uart_init(GRBL_UART_ID, GRBL_UART_BAUD);
   if (actual_baud == 0) {
-    printf("Error: Failed to initialize UART1 at %d baud\n", GRBL_UART_BAUD);
+    printf("Error: Failed to initialize UART1 at %u baud\n", GRBL_UART_BAUD);
     return -1;
   }
-  printf("GRBL UART initialized at %u baud (requested %d)\n", actual_baud, GRBL_UART_BAUD);
+  printf("GRBL UART initialized at %u baud (requested %u)\n", actual_baud, GRBL_UART_BAUD);
   
   // Set the TX and RX pins for UART1
   gpio_set_function(GRBL_UART_TX_PIN, GPIO_FUNC_UART);
