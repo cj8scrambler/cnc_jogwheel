@@ -62,7 +62,7 @@ int grbl_cmd_move(float x_distance, float y_distance, float z_distance, uint16_t
   }
   
   // Add feed rate (speed)
-  ret = snprintf(command + len, sizeof(command) - len, " F%d", speed);
+  ret = snprintf(command + len, sizeof(command) - len, " F%u", speed);
   if (ret < 0 || ret >= (int)(sizeof(command) - len)) return -1;
   len += ret;
   
@@ -74,7 +74,7 @@ int grbl_cmd_move(float x_distance, float y_distance, float z_distance, uint16_t
   // Send command via UART to GRBL controller
   uart_puts(UART_ID, command);
   
-  printf("%s(%.1f, %.1f, %.1f, %d) -> %s", __func__, x_distance, y_distance, z_distance, speed, command);
+  printf("%s(%.1f, %.1f, %.1f, %u) -> %s", __func__, x_distance, y_distance, z_distance, speed, command);
   
   return 0;
 }
