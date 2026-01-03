@@ -36,7 +36,11 @@ int grbl_init() {
   // Initialize UART1 for GRBL communication
   // Tx (GPIO-4, pin 6) sends to GRBL controller
   // Rx (GPIO-5, pin 7) receives from GRBL controller
-  uart_init(GRBL_UART_ID, GRBL_UART_BAUD);
+  uint actual_baud = uart_init(GRBL_UART_ID, GRBL_UART_BAUD);
+  if (actual_baud == 0) {
+    printf("Error: Failed to initialize UART1 at %d baud\n", GRBL_UART_BAUD);
+    return -1;
+  }
   
   // Set the TX and RX pins for UART1
   gpio_set_function(GRBL_UART_TX_PIN, GPIO_FUNC_UART);
@@ -48,7 +52,7 @@ int grbl_init() {
   // Set data format: 8 data bits, 1 stop bit, no parity (8N1)
   uart_set_format(GRBL_UART_ID, 8, 1, UART_PARITY_NONE);
   
-  // Turn off FIFO's - we want to do this character by character for responsiveness
+  // Turn off FIFOs - we want to do this character by character for responsiveness
   uart_set_fifo_enabled(GRBL_UART_ID, false);
   
   // Initialize command queue and start handler on core1
