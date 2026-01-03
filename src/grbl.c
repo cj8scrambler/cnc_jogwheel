@@ -2,11 +2,17 @@
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
+#include "hardware/uart.h"
 
 #include "grbl.h"
 #include "grbl_cmd.h"
 
 static queue_t message_queue;
+
+#define GRBL_UART_ID       uart1
+#define GRBL_UART_TX_PIN   4
+#define GRBL_UART_RX_PIN   5
+#define GRBL_UART_BAUD     115200
 
 #define MOVE_SPEED         100
 #define PROBE_X_OFFSET     10
@@ -27,7 +33,25 @@ static const char *action_names[] = {
 static void grbl_handler();
 
 int grbl_init() {
-  // TODO: error checking
+  // Initialize UART1 for GRBL communication
+  // Tx (GPIO-4, pin 6) sends to GRBL controller
+  // Rx (GPIO-5, pin 7) receives from GRBL controller
+  uart_init(GRBL_UART_ID, GRBL_UART_BAUD);
+  
+  // Set the TX and RX pins for UART1
+  gpio_set_function(GRBL_UART_TX_PIN, GPIO_FUNC_UART);
+  gpio_set_function(GRBL_UART_RX_PIN, GPIO_FUNC_UART);
+  
+  // Set UART flow control CTS/RTS, we don't want these, so turn them off
+  uart_set_hw_flow(GRBL_UART_ID, false, false);
+  
+  // Set data format: 8 data bits, 1 stop bit, no parity (8N1)
+  uart_set_format(GRBL_UART_ID, 8, 1, UART_PARITY_NONE);
+  
+  // Turn off FIFO's - we want to do this character by character for responsiveness
+  uart_set_fifo_enabled(GRBL_UART_ID, false);
+  
+  // Initialize command queue and start handler on core1
   queue_init(&message_queue, sizeof(grbl_cmd), 16);
   multicore_launch_core1(grbl_handler);
   return 0;
