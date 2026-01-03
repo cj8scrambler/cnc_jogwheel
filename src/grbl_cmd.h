@@ -35,9 +35,11 @@ int grbl_cmd_zero(bool zero_x, bool zero_y, bool zero_z);
  * @param probe_x Perform X axis probe if true
  * @param probe_y Perform Y axis probe if true
  * @param probe_z Perform Z axis probe if true
- * @param z_offset Offset to compensate for touch block thickness (mm)
+ * @param x_offset Offset to compensate for probe block position in X direction (mm)
+ * @param y_offset Offset to compensate for probe block position in Y direction (mm)
+ * @param z_offset Offset to compensate for touch block thickness in Z direction (mm)
  * @return 0 on success, negative error code on failure
  */
-int grbl_cmd_probe(bool probe_x, bool probe_y, bool probe_z, float z_offset);
+int grbl_cmd_probe(bool probe_x, bool probe_y, bool probe_z, float x_offset, float y_offset, float z_offset);
 
 #endif /* GRBL_CMD_H */

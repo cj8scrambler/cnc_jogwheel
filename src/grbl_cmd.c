@@ -12,13 +12,13 @@ int grbl_cmd_zero(bool zero_x, bool zero_y, bool zero_z) {
   return 0;
 }
 
-int grbl_cmd_probe(bool probe_x, bool probe_y, bool probe_z, float z_offset) {
+int grbl_cmd_probe(bool probe_x, bool probe_y, bool probe_z, float x_offset, float y_offset, float z_offset) {
   // TODO: Implement automatic touch probe operations
   // This should:
   // 1. Pre-position the head to ensure contact with touch probe
   // 2. Slowly move towards touch block until contact detected
   // 3. Back off and retry multiple times for consistency
   // 4. Repeat for each enabled axis (X, Y, Z)
-  // 5. Apply z_offset to compensate for touch block thickness on Z axis
+  // 5. Apply x_offset, y_offset, and z_offset to compensate for probe block position
   return 0;
 }
