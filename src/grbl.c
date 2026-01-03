@@ -47,13 +47,14 @@ int grbl_init() {
   gpio_set_function(GRBL_UART_TX_PIN, GPIO_FUNC_UART);
   gpio_set_function(GRBL_UART_RX_PIN, GPIO_FUNC_UART);
   
-  // Set UART flow control CTS/RTS, we don't want these, so turn them off
+  // Set UART flow control CTS/RTS, we don't want this, so turn it off
   uart_set_hw_flow(GRBL_UART_ID, false, false);
   
   // Set data format: 8 data bits, 1 stop bit, no parity (8N1)
   uart_set_format(GRBL_UART_ID, 8, 1, UART_PARITY_NONE);
   
-  // Turn off FIFOs - we want to do this character by character for responsiveness
+  // Turn off FIFOs - GRBL expects immediate command processing without buffering delays
+  // This ensures commands are sent/received character by character for responsiveness
   uart_set_fifo_enabled(GRBL_UART_ID, false);
   
   // Initialize command queue and start handler on core1
