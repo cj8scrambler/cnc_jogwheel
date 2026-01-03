@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include "pico/stdlib.h"
 #include "hardware/uart.h"
 
 #include "grbl_cmd.h"
@@ -9,6 +10,20 @@
 #define UART_ID uart1
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
+#define UART_BAUD_RATE 115200  // Standard baud rate for GRBL
+
+/**
+ * Initialize UART for GRBL communication
+ * Should be called once during system initialization
+ */
+void grbl_uart_init(void) {
+  // Initialize UART
+  uart_init(UART_ID, UART_BAUD_RATE);
+  
+  // Set TX and RX pins
+  gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+  gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+}
 
 int grbl_cmd_move(float x_distance, float y_distance, float z_distance, uint16_t speed) {
   // Build GRBL jog command: $J=G91 [X...] [Y...] [Z...] F...
@@ -18,30 +33,43 @@ int grbl_cmd_move(float x_distance, float y_distance, float z_distance, uint16_t
   
   char command[128];
   int len = 0;
+  int ret;
   
   // Start with jog command prefix and incremental mode
-  len = snprintf(command, sizeof(command), "$J=G91");
+  ret = snprintf(command, sizeof(command), "$J=G91");
+  if (ret < 0 || ret >= (int)sizeof(command)) return -1;
+  len = ret;
   
   // Add X axis if distance is non-zero
   if (x_distance != 0.0f) {
-    len += snprintf(command + len, sizeof(command) - len, " X%.3f", x_distance);
+    ret = snprintf(command + len, sizeof(command) - len, " X%.3f", x_distance);
+    if (ret < 0 || ret >= (int)(sizeof(command) - len)) return -1;
+    len += ret;
   }
   
   // Add Y axis if distance is non-zero
   if (y_distance != 0.0f) {
-    len += snprintf(command + len, sizeof(command) - len, " Y%.3f", y_distance);
+    ret = snprintf(command + len, sizeof(command) - len, " Y%.3f", y_distance);
+    if (ret < 0 || ret >= (int)(sizeof(command) - len)) return -1;
+    len += ret;
   }
   
   // Add Z axis if distance is non-zero
   if (z_distance != 0.0f) {
-    len += snprintf(command + len, sizeof(command) - len, " Z%.3f", z_distance);
+    ret = snprintf(command + len, sizeof(command) - len, " Z%.3f", z_distance);
+    if (ret < 0 || ret >= (int)(sizeof(command) - len)) return -1;
+    len += ret;
   }
   
   // Add feed rate (speed)
-  len += snprintf(command + len, sizeof(command) - len, " F%d", speed);
+  ret = snprintf(command + len, sizeof(command) - len, " F%d", speed);
+  if (ret < 0 || ret >= (int)(sizeof(command) - len)) return -1;
+  len += ret;
   
   // Add newline terminator
-  len += snprintf(command + len, sizeof(command) - len, "\n");
+  ret = snprintf(command + len, sizeof(command) - len, "\n");
+  if (ret < 0 || ret >= (int)(sizeof(command) - len)) return -1;
+  len += ret;
   
   // Send command via UART to GRBL controller
   uart_puts(UART_ID, command);
