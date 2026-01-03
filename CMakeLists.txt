@@ -8,6 +8,7 @@ pico_sdk_init()
 add_executable(${PROJECT_NAME}
   src/main.c
   src/grbl.c
+  src/grbl_cmd.c
   src/io.c
   )
 

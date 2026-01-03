@@ -4,9 +4,14 @@
 #include "pico/util/queue.h"
 
 #include "grbl.h"
+#include "grbl_cmd.h"
 
-int command_result;
 static queue_t message_queue;
+
+#define MOVE_SPEED         100
+#define PROBE_X_OFFSET     10
+#define PROBE_Y_OFFSET     10
+#define PROBE_Z_OFFSET     4
 
 static const char *action_names[] = {
   [MOVE_X]   = "MOVE_X",
@@ -51,14 +56,36 @@ int grbl_queue_command(grbl_cmd *command) {
 
 static void grbl_handler() {
   grbl_cmd command;
+  int ret;
 
   while (true) {
     queue_remove_blocking(&message_queue, &command);
-    printf("Running command %s\n", action_name(command.action));
-    // TODO: actually do something
-    sleep_ms(100);
-    command_result = 0;
-    printf("Command complete %s\n", action_name(command.action));
+    switch(command.action) {
+    case MOVE_X:
+      ret = grbl_cmd_move(command.arg1, 0, 0, MOVE_SPEED);
+      break;
+    case MOVE_Y:
+      ret = grbl_cmd_move(0, command.arg1, 0, MOVE_SPEED);
+      break;
+    case MOVE_Z:
+      ret = grbl_cmd_move(0, 0, command.arg1, MOVE_SPEED);
+      break;
+    case ZERO_XY:
+      ret = grbl_cmd_zero(true, true, false);
+      break;
+    case ZERO_Z:
+      ret = grbl_cmd_zero(false, false, true);
+      break;
+    case PROBE_XY:
+      ret = grbl_cmd_probe(true, true, false, PROBE_X_OFFSET, PROBE_Y_OFFSET, PROBE_Z_OFFSET);
+      break;
+    case PROBE_Z:
+      ret = grbl_cmd_probe(false, false, true, PROBE_X_OFFSET, PROBE_Y_OFFSET, PROBE_Z_OFFSET);
+      break;
+    default:
+      printf("Invalid command: %d(%d)\n", command.action, command.arg1);
+      break;
+    }
   }
 }
 
