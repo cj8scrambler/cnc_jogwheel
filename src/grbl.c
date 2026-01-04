@@ -4,6 +4,7 @@
 #include "pico/util/queue.h"
 
 #include "grbl.h"
+#include "io.h"
 #include "grbl_cmd.h"
 
 static queue_t message_queue;
@@ -28,6 +29,7 @@ static void grbl_handler();
 
 int grbl_init() {
   // TODO: error checking
+  grbl_uart_init();
   queue_init(&message_queue, sizeof(grbl_cmd), 16);
   multicore_launch_core1(grbl_handler);
   return 0;

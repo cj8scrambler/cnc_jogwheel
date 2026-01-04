@@ -8,7 +8,7 @@ int main() {
 int i=0;
   stdio_init_all();
 
-  jogwheel_io_init();
+  io_init();
   set_led(1);
 
   grbl_init();

@@ -4,6 +4,7 @@
 #include "hardware/gpio.h"
 #include "hardware/adc.h"
 #include "hardware/irq.h"
+#include "hardware/uart.h"
 
 #ifdef CYW43_WL_GPIO_LED_PIN
 #include "pico/cyw43_arch.h"
@@ -16,7 +17,11 @@
 
 #define ADC_MAX          (1 << 12)
 
+#define GRBL_UART_BAUD     115200
+
 /*      NAME                  GPIO      PIN  */
+#define UART_TX_GRBL_RX         4    // 6
+#define UART_RX_GRBL_TX         5    // 7
 #if 0
 #define JOY_LEFT_GPIO           6    // 9
 #define JOY_DOWN_GPIO           7    // 10
@@ -251,7 +256,23 @@ void set_led(bool enable)
 #endif
 }
 
-void jogwheel_io_init(void)
+void grbl_uart_init(void)
+{
+  // Initialize UART for GRBL communication
+  uint actual_baud = uart_init(GRBL_UART_ID, GRBL_UART_BAUD);
+  if (actual_baud == 0) {
+    printf("Error: Failed to initialize UART1 at %d baud\n", GRBL_UART_BAUD);
+    return;
+  }
+  printf("GRBL UART initialized at %u baud (requested %d)\n", actual_baud, GRBL_UART_BAUD);
+
+  gpio_set_function(UART_TX_GRBL_RX, GPIO_FUNC_UART);
+  gpio_set_function(UART_RX_GRBL_TX, GPIO_FUNC_UART);
+  uart_set_hw_flow(GRBL_UART_ID, false, false); // No HW flow control
+  uart_set_format(GRBL_UART_ID, 8, 1, UART_PARITY_NONE); // 8-N-1
+}
+
+void io_init(void)
 {
 
 #if defined(PICO_DEFAULT_LED_PIN)

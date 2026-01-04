@@ -12,7 +12,7 @@ add_executable(${PROJECT_NAME}
   src/io.c
   )
 
-target_link_libraries(${PROJECT_NAME} pico_stdlib hardware_adc)
+target_link_libraries(${PROJECT_NAME} pico_stdlib hardware_adc hardware_uart)
 target_link_libraries(${PROJECT_NAME} pico_multicore)
 
 if (PICO_CYW43_SUPPORTED)
